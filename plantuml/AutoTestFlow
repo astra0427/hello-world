@@ -1,0 +1,83 @@
+@startuml
+GitHub -> Jenkins_Master: push契機でビルド・テスト実施
+activate Jenkins_Master
+
+  Jenkins_Master -> Jenkins_Slave : ビルドJOB開始
+    activate Jenkins_Slave
+      
+      Jenkins_Slave -> GitHub : ソースコード取得
+      GitHub --> Jenkins_Slave
+
+      Jenkins_Slave -> dockerRegistry : ビルド用イメージ取得
+      dockerRegistry --> Jenkins_Slave
+
+      create BuildContainer
+
+      Jenkins_Slave -> BuildContainer : コンテナ生成
+      activate BuildContainer
+      BuildContainer -> BuildContainer : ビルド処理実施
+      deactivate BuildContainer
+ 
+      BuildContainer -> Jenkins_Slave : 成果物のコピー
+      destroy BuildContainer
+
+      Jenkins_Slave -> Jenkins_Slave : テスト用イメージ作成
+      Jenkins_Slave -> dockerRegistry : テスト用イメージ登録
+      dockerRegistry --> Jenkins_Slave
+
+
+      Jenkins_Slave --> Jenkins_Master : ビルドJOB完了
+    deactivate Jenkins_Slave
+
+  Jenkins_Master -> Jenkins_Slave : テストJOB開始
+    activate Jenkins_Slave
+
+      Jenkins_Slave -> dockerRegistry : テスト用イメージ取得
+      dockerRegistry --> Jenkins_Slave
+
+      create TestContainer
+
+      Jenkins_Slave -> TestContainer : テスト用コンテナ生成
+      activate TestContainer
+      TestContainer -> TestContainer : テスト実施
+      deactivate TestContainer
+ 
+      TestContainer -> Jenkins_Slave : テストログ、エビデンスのコピー
+      destroy TestContainer
+
+      Jenkins_Slave --> Jenkins_Master : テストJOB完了
+    deactivate Jenkins_Slave
+
+  Jenkins_Master -> Jenkins_Slave : ログ送付JOB開始
+    activate Jenkins_Slave
+
+      Jenkins_Slave -> FileServer : ログ・エビデンス送付
+      FileServer --> Jenkins_Slave
+
+      Jenkins_Slave --> Jenkins_Master : ログ送付JOB完了
+    deactivate Jenkins_Slave
+
+  Jenkins_Master -> Jenkins_Slave : 解析JOB開始
+    activate Jenkins_Slave
+
+      Jenkins_Slave -> AnalyizeServer : ログ登録API
+      AnalyizeServer --> Jenkins_Slave
+
+      AnalyizeServer -> FileServer : ログ取得
+      FileServer --> AnalyizeServer
+
+      AnalyizeServer -> AnalyizeServer : ログ解析
+      note right : 通知は？別途APIで取得？
+
+      Jenkins_Slave --> Jenkins_Master : 解析JOB完了
+    deactivate Jenkins_Slave
+
+  Jenkins_Master -> Jenkins_Slave : ログ加工JOB開始
+    activate Jenkins_Slave
+
+      Jenkins_Slave --> Jenkins_Master : ログ加工JOB完了
+      note right : JOBで実施？
+    deactivate Jenkins_Slave
+
+deactivate Jenkins_Master
+@enduml
